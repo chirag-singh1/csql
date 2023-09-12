@@ -10,6 +10,9 @@
 # define LOG_DEBUG(title, text) \
     std::cout << "[DEBUG] " << title << ": " << text << std::endl;
 
+# define LOG_DEBUG_RAW(text) \
+    std::cout << "[DEBUG] " << text << std::endl;
+
 inline void JSON_LOG_DEBUG(std::string title, const rapidjson::Value* val) {
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);

@@ -3,6 +3,7 @@
 #include "../util/file.h"
 #include "../util/log.h"
 #include "../../lib/rapidjson/document.h"
+#include "../analyzer/operations.h"
 
 #include <string>
 #include <unordered_map>
@@ -87,15 +88,35 @@ bool MetadataStore::create_table(std::string name, std::vector<std::pair<std::st
 }
 
 void MetadataStore::persist_metadata() {
+    LOG_DEBUG_RAW("Saving metadata");
     rapidjson::Document d;
     d.SetObject();
     for (auto itr = databases.begin(); itr != databases.end(); itr++) {
         rapidjson::Value db;
         db.SetObject();
+        std::unordered_map<std::string, Table*>* tables = itr->second->get_tables();
+        for (auto tbl_itr = tables->begin(); tbl_itr != tables->end(); tbl_itr++) {
+            rapidjson::Value t;
+            t.SetArray();
+            Schema* schema = tbl_itr->second->get_schema();
+            for (auto s_itr = schema->columns.begin(); s_itr != schema->columns.end(); s_itr++) {
+                rapidjson::Value col;
+                col.SetObject();
+                rapidjson::Value col_name(s_itr->first.c_str(), strlen(s_itr->first.c_str()), d.GetAllocator());
+                col.AddMember(OPT_COL_NAMES, col_name, d.GetAllocator());
+                col.AddMember(OPT_COL_TYPES, s_itr->second, d.GetAllocator());
+                t.PushBack(col, d.GetAllocator());
+            }
+
+            rapidjson::Value table_name(tbl_itr->first.c_str(), strlen(tbl_itr->first.c_str()), d.GetAllocator());
+            db.AddMember(table_name, t, d.GetAllocator());
+        }
+
         rapidjson::Value db_name(itr->first.c_str(), strlen(itr->first.c_str()), d.GetAllocator());
         d.AddMember(db_name, db, d.GetAllocator());
     }
 
-    JSON_LOG_DEBUG("here", &d);
+    JSON_LOG_DEBUG("Metadata", &d);
     write_json_to_file(&d, metastore_filepath());
+    LOG_DEBUG_RAW("Metadata saved");
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../util/log.h"
+#include "../../lib/rapidjson/document.h"
 
 #include <string>
 #include <unordered_map>
@@ -28,6 +29,7 @@ class Table {
         Table(std::string name, Schema* schema, int num_columns);
         ~Table();
         void print_schema();
+        Schema* get_schema();
 
     private:
         std::string name;
@@ -41,6 +43,7 @@ class Database {
         ~Database();
         bool table_exists(std::string name);
         bool create_table(std::string name, std::vector<std::pair<std::string, std::string>> cols);
+        std::unordered_map<std::string, Table*>* get_tables();
 
     private:
         std::string name;

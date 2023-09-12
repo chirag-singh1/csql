@@ -1,5 +1,6 @@
 #include "metadata.h"
 #include "../util/log.h"
+#include "../../lib/rapidjson/document.h"
 
 #include <string>
 #include <unordered_map>
@@ -26,6 +27,10 @@ void Table::print_schema() {
     LOG_DEBUG("Schema", output);
 }
 
+Schema* Table::get_schema() {
+    return schema;
+}
+
 Database::Database(std::string name): name(name) {}
 
 Database::~Database() {
@@ -49,6 +54,11 @@ bool Database::create_table(std::string name, std::vector<std::pair<std::string,
     if (new_table != nullptr) {
         LOG_DEBUG("Table created", name);
         new_table->print_schema();
+        tables[name] = new_table;
     }
     return new_table != nullptr;
+}
+
+std::unordered_map<std::string, Table*>* Database::get_tables() {
+    return &tables;
 }
