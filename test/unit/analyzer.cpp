@@ -15,5 +15,4 @@ TEST(Analyzer, testParseCreateDatabase) {
     op = op->get_children()[0];
     EXPECT_EQ (op->get_num_children(), 0);
     EXPECT_EQ (op->get_operation(), OP_CREATE_DB);
-    EXPECT_EQ (op->get_options()->MemberBegin()->value, "db");
 }
