@@ -58,7 +58,7 @@ class OperationNode {
 # define OPT_COL_TYPES "typeName"
 # define OPT_TYPE_NAMES "names"
 # define OPT_COL_NAME(i) "colname" + std::to_string(i)
-# define OPT_COL_TYPE(t) "coltype" + t
+# define OPT_COL_TYPE(t) "coltype" + std::to_string(t)
 # define OPT_STRING "String"
 # define OPT_STRING_VAL "sval"
 # define OPT_TYPE_NAME_INVALID "pg_catalog"
@@ -71,5 +71,7 @@ class OperationNode {
 # define OPT_INT_VAL "ival"
 # define OPT_STR_VAL "sval"
 # define OPT_BOOL_VAL "boolval"
-# define OPT_CONST_TYPE(i) "const" + std::to_string(i)
-# define OPT_CONST_VAL(i) "const" + std::to_string(i)
+# define OPT_CONST_TYPE(i) "const_type" + std::to_string(i)
+# define OPT_CONST_VAL(i) "const_val" + std::to_string(i)
+# define OPT_SELECT_TARGET "selectTarget"
+# define OPT_NUM_VALUES "numValues"

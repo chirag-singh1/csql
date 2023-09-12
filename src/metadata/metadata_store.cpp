@@ -2,14 +2,14 @@
 #include "../constants.h"
 #include "../util/file.h"
 #include "../util/log.h"
+#include "../../lib/rapidjson/document.h"
 
 #include <string>
 #include <unordered_map>
 
 MetadataStore::MetadataStore() {
     const rapidjson::Value& metadata
-        = read_json_from_file(std::string(DEFAULT_FILEPATH) +
-            std::string(METASTORE_FILEPATH));
+        = read_json_from_file(metastore_filepath());
 
     // TODO: Load metadata from disk
     databases[DEFAULT_DB_NAME] = new Database(DEFAULT_DB_NAME);
@@ -31,6 +31,7 @@ bool MetadataStore::create_db(std::string name) {
 
     databases[name] = new Database(name);
     LOG_DEBUG("Database created", name);
+    persist_metadata();
     return true;
 }
 
@@ -48,6 +49,7 @@ bool MetadataStore::drop_db(std::string name, bool missing_ok) {
     }
 
     databases.erase(databases.find(name));
+    persist_metadata();
     LOG_DEBUG("Database dropped", name);
 
     // Reset active DB name if active DB dropped.
@@ -77,5 +79,23 @@ bool MetadataStore::db_exists(std::string name) {
 bool MetadataStore::create_table(std::string name, std::vector<std::pair<std::string, std::string>> cols) {
     LOG_DEBUG("Creating table", name);
     Database* curr_db = databases.find(active_db)->second;
-    return curr_db->create_table(name, cols);
+    bool res = curr_db->create_table(name, cols);
+    if (res) {
+        persist_metadata();
+    }
+    return res;
+}
+
+void MetadataStore::persist_metadata() {
+    rapidjson::Document d;
+    d.SetObject();
+    for (auto itr = databases.begin(); itr != databases.end(); itr++) {
+        rapidjson::Value db;
+        db.SetObject();
+        rapidjson::Value db_name(itr->first.c_str(), strlen(itr->first.c_str()), d.GetAllocator());
+        d.AddMember(db_name, db, d.GetAllocator());
+    }
+
+    JSON_LOG_DEBUG("here", &d);
+    write_json_to_file(&d, metastore_filepath());
 }

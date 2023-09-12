@@ -16,3 +16,7 @@ inline void JSON_LOG_DEBUG(std::string title, const rapidjson::Value* val) {
     val->Accept(writer);
     std::cout << "[DEBUG] " << title << ": " << buffer.GetString() << std::endl;
 }
+
+inline const char* bool_cast(const bool b) {
+    return b ? "true" : "false";
+}

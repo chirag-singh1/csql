@@ -1,5 +1,6 @@
 #include "analyzer.h"
 #include "../util/log.h"
+#include "../metadata/metadata.h"
 
 #include <iostream>
 #include <vector>
@@ -54,7 +55,8 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
         else if (operation_lookup.at(op_name) == OP_DROP_DB) { // DROP DATABASE
             // Set database name, and IF EXISTS.
             o->set_string_option(OPT_DB_NAME, options.FindMember(OPT_DB_NAME)->value.GetString());
-            o->set_bool_option(OPT_DB_MISSING_OK, options.FindMember(OPT_DB_MISSING_OK)->value.GetBool());
+            o->set_bool_option(OPT_DB_MISSING_OK, options.FindMember(OPT_DB_MISSING_OK)->value.IsBool()
+                && options.FindMember(OPT_DB_MISSING_OK)->value.GetBool());
         }
         else if (operation_lookup.at(op_name) == OP_CREATE) { // CREATE TABLE
             // Set table name and number of columns;
@@ -91,22 +93,25 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             // Select statement comes from list of values.
             if (sel_op.HasMember(OPT_VALUE_LIST)) {
                 // Currently, only gets the first list from valuesList.
+                o->set_string_option(OPT_SELECT_TARGET, OPT_VALUE_LIST);
                 assert(sel_op.FindMember(OPT_VALUE_LIST)->value.GetArray().Size() == 1);
                 const rapidjson::Value& vals =
                     (*sel_op.FindMember(OPT_VALUE_LIST)->value.GetArray().Begin()).FindMember(OPT_LIST)->value.FindMember(OPT_ITEMS)->value;
+                o->set_int_option(OPT_NUM_VALUES, vals.Size());
                 int i = 0;
                 for (auto itr = vals.Begin(); itr != vals.End(); ++itr) {
                     const rapidjson::Value& val = itr->FindMember(OPT_CONST)->value;
+                    JSON_LOG_DEBUG("text", &val);
                     if (val.HasMember(OPT_INT_VAL)) {
-                       o->set_string_option(OPT_CONST_TYPE(i), OPT_INT_VAL);
+                       o->set_int_option(OPT_CONST_TYPE(i), TYPE_INT);
                        o->set_int_option(OPT_CONST_VAL(i), val.FindMember(OPT_INT_VAL)->value.FindMember(OPT_INT_VAL)->value.GetInt());
                     }
                     else if (val.HasMember(OPT_STR_VAL)) {
-                        o->set_string_option(OPT_CONST_TYPE(i), OPT_STR_VAL);
+                        o->set_int_option(OPT_CONST_TYPE(i), TYPE_STRING);
                         o->set_string_option(OPT_CONST_VAL(i), val.FindMember(OPT_STR_VAL)->value.FindMember(OPT_STR_VAL)->value.GetString());
                     }
                     else if (val.HasMember(OPT_BOOL_VAL)) {
-                        o->set_string_option(OPT_CONST_TYPE(i), OPT_BOOL_VAL);
+                        o->set_int_option(OPT_CONST_TYPE(i), TYPE_BOOL);
                         o->set_bool_option(OPT_CONST_VAL(i), val.FindMember(OPT_BOOL_VAL)->value.FindMember(OPT_BOOL_VAL)->value.GetBool());
                     }
                     else {

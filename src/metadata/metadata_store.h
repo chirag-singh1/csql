@@ -18,6 +18,7 @@ class MetadataStore {
         bool db_exists(std::string name);
 
     private:
+        void persist_metadata();
         std::unordered_map<std::string, Database*> databases;
         std::string active_db;
 };

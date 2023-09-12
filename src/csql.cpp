@@ -1,4 +1,5 @@
 #include "csql.h"
+#include "util/file.h"
 #include "constants.h"
 #include "parser/parser.h"
 #include "analyzer/analyzer.h"
@@ -24,6 +25,8 @@ void execute_query(Analyzer* a, MetadataStore* meta, std::string query) {
 }
 
 void start_main_loop() {
+    init_filesystem();
+
     std::cout << "Welcome to csql interactive shell." << std::endl;
     std::string user_in;
     std::cout << ">" << std::flush;
