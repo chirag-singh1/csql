@@ -27,13 +27,13 @@ void execute_query(Analyzer* a, MetadataStore* meta, std::string query) {
 void start_main_loop() {
     init_filesystem();
 
+    Analyzer analyzer;
+    MetadataStore meta;
+
     std::cout << "Welcome to csql interactive shell." << std::endl;
     std::string user_in;
     std::cout << ">" << std::flush;
     std::getline(std::cin, user_in);
-
-    Analyzer analyzer;
-    MetadataStore meta;
 
     while (user_in.compare(EXIT_SHELL_INPUT) != 0) {
         execute_query(&analyzer, &meta, user_in);

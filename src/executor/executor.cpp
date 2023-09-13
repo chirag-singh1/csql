@@ -4,6 +4,7 @@
 #include "../metadata/metadata_store.h"
 #include "../metadata/metadata.h"
 #include "../util/log.h"
+#include "../table/table.h"
 
 #include <cstring>
 #include <string>
@@ -49,8 +50,14 @@ void Executor::execute_internal(OperationNode* curr_op) {
         LOG_DEBUG("INSERT", curr_op->get_string_option(OPT_TABLE_NAME));
         assert(curr_op->get_num_children() == 1); // Expect one child.
         execute_internal(curr_op->get_children()[0]); // Execute SELECT to get result.
-
         curr_result->print();
+        Table* table_to_insert = metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME));
+        if (table_to_insert != nullptr) {
+            table_to_insert->insert_data(curr_result);
+        }
+        else {
+            LOG_DEBUG("Table does not exist", metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME)));
+        }
     }
     else if (curr_op->get_operation() == OP_SELECT) {
         LOG_DEBUG("SELECT", curr_op->get_string_option(OPT_SELECT_TARGET));

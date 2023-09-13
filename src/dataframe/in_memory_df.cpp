@@ -1,12 +1,14 @@
 #include "in_memory_df.h"
 #include "../constants.h"
 #include "../util/log.h"
+#include "../metadata/metadata_store.h"
+#include "../util/file.h"
 
 #include <iostream>
 #include <vector>
 
 InMemoryDF::InMemoryDF(std::vector<DataType> col_types) {
-    init(col_types);
+    init(col_types, INITIAL_CAPACITY);
 }
 
 InMemoryDF::InMemoryDF(Schema* schema) {
@@ -15,12 +17,55 @@ InMemoryDF::InMemoryDF(Schema* schema) {
     for (auto itr = schema->columns.begin(); itr != schema->columns.end(); itr++) {
         col_types.push_back(itr->second);
     }
-    init(col_types);
+    init(col_types, INITIAL_CAPACITY);
 }
 
-void InMemoryDF::init(std::vector<DataType> col_types) {
+InMemoryDF::InMemoryDF(std::vector<DataType> col_types, int initial_capacity) {
+    init(col_types, initial_capacity);
+}
+
+InMemoryDF::InMemoryDF(Schema* schema, int initial_capacity) {
+    std::vector<DataType> col_types;
+
+    for (auto itr = schema->columns.begin(); itr != schema->columns.end(); itr++) {
+        col_types.push_back(itr->second);
+    }
+    init(col_types, initial_capacity);
+}
+
+InMemoryDF::InMemoryDF(InMemoryDF* original) {
+    // Copy column types and initialize data.
+    std::vector<DataType> ctypes(original->get_num_columns(), TYPE_INT);
+    for (int i = 0; i < get_num_columns(); i++) {
+        ctypes[i] = original->get_col_type(i);
+    }
+    init(ctypes, original->get_capacity());
+
+    // Copy data.
+    num_records = original->get_num_records();
+    int num_columns = get_num_columns();
+    for (int i = 0; i < ctypes.size(); i++) {
+        if (ctypes[i] == TYPE_INT) {
+            memcpy(int_data[int_cols[i]], original->get_int_data(i), sizeof(int) * num_records);
+        }
+        else if (ctypes[i] == TYPE_BOOL) {
+            memcpy(bool_data[bool_cols[i]], original->get_bool_data(i), sizeof(bool) * num_records);
+        }
+        else if (ctypes[i] == TYPE_STRING) {
+            for (int j = 0; j < num_records; j++) {
+                char** orig_data = original->get_str_data(i);
+                int length_to_copy = strlen(orig_data[j]) + 1;
+                str_data[str_cols[i]][j] = new char[length_to_copy];
+                memcpy(str_data[str_cols[i]][j], orig_data[j], sizeof(char) * length_to_copy);
+            }
+        }
+    }
+
+}
+
+void InMemoryDF::init(std::vector<DataType> col_types, int initial_capacity) {
     num_records = 0;
-    curr_capacity = INITIAL_CAPACITY;
+    curr_capacity = initial_capacity;
     num_int = 0;
     num_bool = 0;
     num_str = 0;
@@ -46,21 +91,18 @@ void InMemoryDF::init(std::vector<DataType> col_types) {
     str_lengths = new int*[num_str];
 
     for (int i = 0; i < num_int; i++) {
-        int_data[i] = new int[INITIAL_CAPACITY];
+        int_data[i] = new int[initial_capacity];
     }
     for (int i = 0; i < num_bool; i++) {
-        bool_data[i] = new bool[INITIAL_CAPACITY];
+        bool_data[i] = new bool[initial_capacity];
     }
     for (int i = 0; i < num_str; i++) {
-        str_data[i] = new char*[INITIAL_CAPACITY];
-        str_lengths[i] = new int[INITIAL_CAPACITY];
+        str_data[i] = new char*[initial_capacity];
+        str_lengths[i] = new int[initial_capacity];
     }
 }
 
 InMemoryDF::~InMemoryDF() {
-    LOG_DEBUG("a", num_int);
-    LOG_DEBUG("a", num_str);
-    LOG_DEBUG("a", num_bool);
     for (int i = 0; i < num_int; i++) {
         delete[] int_data[i];
     }
@@ -70,7 +112,7 @@ InMemoryDF::~InMemoryDF() {
     }
     if (num_bool > 0) delete[] bool_data;
     for (int i = 0; i < num_str; i++) {
-        for (int j = 0; str_data[i][j] != nullptr; j++) {
+        for (int j = 0; j < num_records; j++) {
             delete[] str_data[i][j];
         }
         delete[] str_lengths[i];
@@ -147,6 +189,16 @@ Record* InMemoryDF::get_record() {
     return r;
 }
 
+bool InMemoryDF::to_disk(MetadataStore* m, std::string name) {
+    std::string filepath = m->get_table_filepath(name);
+    if (filepath == "") {
+        LOG_DEBUG("Disk write failed, table not found", name);
+        return false;
+    }
+
+    check_table_filesystem(filepath);
+}
+
 void InMemoryDF::print() {
     int num_cols = num_bool + num_int + num_str;
     size_t* max_lengths = new size_t[num_cols];
@@ -194,4 +246,40 @@ void InMemoryDF::print() {
     }
 
     delete[] max_lengths;
+}
+
+int InMemoryDF::get_num_records() {
+    return num_records;
+}
+
+int InMemoryDF::get_capacity() {
+    return curr_capacity;
+}
+
+int InMemoryDF::get_num_columns() {
+    return num_bool + num_int + num_str;
+}
+
+DataType InMemoryDF::get_col_type(int ind) {
+    if (int_cols.find(ind) != int_cols.end()) {
+        return TYPE_INT;
+    }
+    else if (bool_cols.find(ind) != bool_cols.end()) {
+        return TYPE_BOOL;
+    }
+    else if (str_cols.find(ind) != str_cols.end()) {
+        return TYPE_STRING;
+    }
+    LOG_DEBUG("Column index not found", ind);
+    assert(false); // Must be found!
+}
+
+int* InMemoryDF::get_int_data(int col_ind) {
+    return int_data[int_cols[col_ind]];
+}
+char** InMemoryDF::get_str_data(int col_ind) {
+    return str_data[str_cols[col_ind]];
+}
+bool* InMemoryDF::get_bool_data(int col_ind) {
+    return bool_data[bool_cols[col_ind]];
 }

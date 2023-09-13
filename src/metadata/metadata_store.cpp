@@ -4,17 +4,35 @@
 #include "../util/log.h"
 #include "../../lib/rapidjson/document.h"
 #include "../analyzer/operations.h"
+#include "../table/table.h"
 
 #include <string>
 #include <unordered_map>
 
 MetadataStore::MetadataStore() {
-    const rapidjson::Value& metadata
-        = read_json_from_file(metastore_filepath());
+    skip_persist_metadata = true;
+    read_json_from_file(metastore_filepath());
+    const rapidjson::Value& metadata = _out;
 
-    // TODO: Load metadata from disk
-    databases[DEFAULT_DB_NAME] = new Database(DEFAULT_DB_NAME);
     active_db = DEFAULT_DB_NAME;
+    LOG_DEBUG_RAW("Loading metadata");
+    for (rapidjson::Value::ConstMemberIterator itr = metadata.MemberBegin(); itr != metadata.MemberEnd(); ++itr) {
+        std::string db_name = std::string(itr->name.GetString());
+        databases[db_name] = new Database(db_name);
+        for (rapidjson::Value::ConstMemberIterator tbl_itr = itr->value.MemberBegin(); tbl_itr != itr->value.MemberEnd(); tbl_itr++) {
+            Schema* s = new Schema;
+            for (rapidjson::Value::ConstValueIterator col_itr = tbl_itr->value.Begin(); col_itr != tbl_itr->value.End(); col_itr++) {
+                std::string col_name = col_itr->FindMember(OPT_COL_NAMES)->value.GetString();
+                s->columns.push_back(std::make_pair(col_name,
+                    col_itr->FindMember(OPT_COL_TYPES)->value.GetInt()));
+                s->column_indices[col_name] = s->columns.size();
+            }
+            std::string tbl_name = std::string(tbl_itr->name.GetString());
+            Table* t = new Table(tbl_name, s, tbl_itr->value.Size(), this);
+            databases.find(db_name)->second->attach_table(tbl_name, t);
+        }
+    }
+    skip_persist_metadata = false;
 }
 
 MetadataStore::~MetadataStore() {
@@ -80,14 +98,29 @@ bool MetadataStore::db_exists(std::string name) {
 bool MetadataStore::create_table(std::string name, std::vector<std::pair<std::string, std::string>> cols) {
     LOG_DEBUG("Creating table", name);
     Database* curr_db = databases.find(active_db)->second;
-    bool res = curr_db->create_table(name, cols);
+    bool res = curr_db->create_table(this, name, cols);
     if (res) {
         persist_metadata();
     }
     return res;
 }
 
+Table* MetadataStore::get_table(std::string name) {
+    Database* curr_db = databases.find(active_db)->second;
+    return curr_db->get_table(name);
+}
+
+std::string MetadataStore::get_table_filepath(std::string name) {
+    if (databases.find(active_db)->second->table_exists(name)) {
+        return DEFAULT_FILEPATH + std::string("/") + active_db + std::string("/") + name;
+    }
+    return "";
+}
+
 void MetadataStore::persist_metadata() {
+    if (skip_persist_metadata) {
+        LOG_DEBUG_RAW("Skipping metadata persist");
+    }
     LOG_DEBUG_RAW("Saving metadata");
     rapidjson::Document d;
     d.SetObject();

@@ -1,6 +1,6 @@
 #include "analyzer.h"
 #include "../util/log.h"
-#include "../metadata/metadata.h"
+#include "../metadata/schema.h"
 
 #include <iostream>
 #include <vector>

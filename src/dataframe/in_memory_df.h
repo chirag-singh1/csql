@@ -1,9 +1,11 @@
 #pragma once
 
-#include "../metadata/metadata.h"
+#include "../metadata/schema.h"
 
 #include <unordered_map>
 #include <vector>
+
+class MetadataStore;
 
 struct Record {
     int* int_vals;
@@ -34,15 +36,29 @@ class InMemoryDF {
     public:
         InMemoryDF(Schema* schema);
         InMemoryDF(std::vector<DataType> col_types);
+        InMemoryDF(Schema* schema, int initial_capacity);
+        InMemoryDF(std::vector<DataType> col_types, int initial_capacity);
+        InMemoryDF(InMemoryDF* original);
         ~InMemoryDF();
+        InMemoryDF* deep_clone();
 
         bool insert_record(Record record);
         Record* get_record();
+        int get_num_records();
+        bool to_disk(MetadataStore* m, std::string table_name);
+        int get_capacity();
+        int get_num_columns();
+        DataType get_col_type(int ind);
+
+        int* get_int_data(int col_ind);
+        char** get_str_data(int col_ind);
+        bool* get_bool_data(int col_ind);
 
         void print();
 
     private:
-        void init(std::vector<DataType> col_types);
+        InMemoryDF();
+        void init(std::vector<DataType> col_types, int initial_capacity);
 
         int** int_data;
         char*** str_data;

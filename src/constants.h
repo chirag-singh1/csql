@@ -4,6 +4,7 @@
 
 # define DEFAULT_FILEPATH "/home/chirag/csql/data"
 # define METASTORE_FILEPATH "/metadata.json"
+# define TABLE_DATA_SUFFIX ".bin"
 
 # define DEFAULT_DB_NAME "default"
 
