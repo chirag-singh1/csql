@@ -43,13 +43,18 @@ bool Table::insert_data(InMemoryDF* new_data) {
 
     // Special case: first insertion, just copy data.
     if (data->get_num_records() == 0) {
+        LOG_DEBUG_RAW("Previous DF empty, creating new DF");
         cleanup_data();
         data = new InMemoryDF(new_data);
         data->print();
-        flush_to_disk();
+        return flush_to_disk();
     }
 
-    // TODO: normal case.
+    bool merge_success = data->merge_df(new_data);
+    if (merge_success) {
+        return flush_to_disk();
+    }
+    return false;
 }
 
 bool Table::load_from_disk() {

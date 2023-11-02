@@ -104,7 +104,7 @@ inline void init_filesystem() {
     char* _path = new char[filepath.size() + 1 + strlen("/data")]; \
     strcpy(_path, filepath.c_str()); \
     strcat(_path + strlen(_path), "/data"); \
-    FILE* _f = fopen(_path, "wb");
+    FILE* _f = fopen(_path, "rb");
 
 inline void int_to_file(int* val, FILE* f) {
     fwrite(val, sizeof(int), 1, f);
@@ -143,6 +143,8 @@ inline void str_arr_from_file(int num_records, char** data, FILE* f) {
     int length;
     for (int i = 0; i < num_records; i++) {
         fread(&length, sizeof(int), 1, f); // Read string length.
+        data[i] = new char[length + 1];
         fread(data[i], sizeof(char), length, f); // Read actual string.
+        data[i][length] = '\0';
     }
 }

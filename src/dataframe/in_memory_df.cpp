@@ -125,8 +125,29 @@ InMemoryDF::~InMemoryDF() {
     }
 }
 
+bool InMemoryDF::merge_df(InMemoryDF* df) {
+    assert(num_records + df->num_records <= curr_capacity);
+    // TODO: schema validation (combine with insert_record).
+    // Copy values.
+    for (int i = 0; i < num_int; i++) {
+        memcpy(int_data[i] + num_records, df->int_data[i], sizeof(int) * df->num_records);
+    }
+    for (int i = 0; i < num_bool; i++) {
+        memcpy(bool_data[i] + num_records, df->bool_data[i], sizeof(bool) * df->num_records);
+    }
+    for (int i = 0; i < num_str; i++) {
+        for (int j = 0; j < df->num_records; j++) {
+            str_data[i][j + num_records] = new char[strlen(df->str_data[i][j]) + 1];
+            strcpy(str_data[i][j + num_records], df->str_data[i][j]);
+        }
+    }
+
+    num_records += df->num_records;
+    return true;
+}
+
 bool InMemoryDF::insert_record(Record record) {
-    assert(num_records <= curr_capacity); // TODO: expand capacity.
+    assert(num_records + 1 <= curr_capacity); // TODO: expand capacity.
 
     // Validate insertion schema.
     if (record.num_cols != num_bool + num_int + num_str) {
@@ -203,6 +224,7 @@ bool InMemoryDF::from_disk(MetadataStore* m, std::string name) {
     if (_f == NULL) {
         LOG_DEBUG("File not found", filepath);
         num_records = 0;
+        return false;
     }
 
     int_from_file(&num_records, _f);

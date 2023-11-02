@@ -43,6 +43,7 @@ class InMemoryDF {
         InMemoryDF* deep_clone();
 
         bool insert_record(Record record);
+        bool merge_df(InMemoryDF* df);
         Record* get_record();
         int get_num_records();
         bool to_disk(MetadataStore* m, std::string table_name);
