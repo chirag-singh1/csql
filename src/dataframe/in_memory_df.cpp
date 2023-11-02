@@ -64,6 +64,7 @@ InMemoryDF::InMemoryDF(InMemoryDF* original) {
 }
 
 void InMemoryDF::init(std::vector<DataType> col_types, int initial_capacity) {
+    version = -1;
     num_records = 0;
     curr_capacity = initial_capacity;
     num_int = 0;
@@ -189,6 +190,38 @@ Record* InMemoryDF::get_record() {
     return r;
 }
 
+bool InMemoryDF::from_disk(MetadataStore* m, std::string name) {
+    std::string filepath = m->get_table_filepath(name);
+    if (filepath == "") {
+        LOG_DEBUG("Disk write failed, table not found", name);
+        return false;
+    }
+
+    // Get table, if not found there are no records.
+    LOG_DEBUG_RAW("Loading from disk");
+    GET_TABLE_FILE(filepath);
+    if (_f == NULL) {
+        LOG_DEBUG("File not found", filepath);
+        num_records = 0;
+    }
+
+    int_from_file(&num_records, _f);
+    int_from_file(&version, _f);
+    for (int i = 0; i < num_int; i++) {
+        int_arr_from_file(num_records, int_data[i], _f);
+    }
+    for (int i = 0; i < num_bool; i++) {
+        bool_arr_from_file(num_records, bool_data[i], _f);
+    }
+    for (int i = 0; i < num_str; i++) {
+        str_arr_from_file(num_records, str_data[i], _f);
+    }
+    fclose(_f);
+    LOG_DEBUG_RAW("Disk read complete");
+
+    return true;
+}
+
 bool InMemoryDF::to_disk(MetadataStore* m, std::string name) {
     std::string filepath = m->get_table_filepath(name);
     if (filepath == "") {
@@ -196,7 +229,25 @@ bool InMemoryDF::to_disk(MetadataStore* m, std::string name) {
         return false;
     }
 
-    check_table_filesystem(filepath);
+    LOG_DEBUG_RAW("Writing to disk");
+    CHECK_TABLE_FILESYSTEM(filepath);
+
+    // Naively write out to file in columnar format.
+    int_to_file(&num_records, _f);
+    int_to_file(&version, _f);
+    for (int i = 0; i < num_int; i++) {
+        int_arr_to_file(num_records, int_data[i], _f);
+    }
+    for (int i = 0; i < num_bool; i++) {
+        bool_arr_to_file(num_records, bool_data[i], _f);
+    }
+    for (int i = 0; i < num_str; i++) {
+        str_arr_to_file(num_records, str_data[i], _f);
+    }
+    fclose(_f);
+    LOG_DEBUG_RAW("Disk write complete");
+
+    return true;
 }
 
 void InMemoryDF::print() {

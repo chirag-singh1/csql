@@ -48,7 +48,6 @@ inline void write_json_to_file(const rapidjson::Value* json,
         _file_in[_fsize] = 0; \
  \
         LOG_DEBUG("Found JSON", _file_in); \
-        rapidjson::Document _d; \
         rapidjson::Value& _f_out = _d.Parse(_file_in); \
         JSON_LOG_DEBUG("Parsed JSON", &_f_out); \
         delete[] _file_in; \
@@ -59,9 +58,9 @@ inline void write_json_to_file(const rapidjson::Value* json,
 // This is VERY insecure, but it's OK (i don't care).
 inline void create_path(char* path) {
     LOG_DEBUG("Creating path", path);
-    char* command = new char[strlen(DEFAULT_FILEPATH) + 1 + strlen("mkdir -p ")];
+    char* command = new char[strlen(path) + 1 + strlen("mkdir -p ")];
     strcpy(command, "mkdir -p ");
-    strcpy(command + strlen("mkdir -p "), DEFAULT_FILEPATH);
+    strcpy(command + strlen(command), path);
     int ret = system(command);
     LOG_DEBUG("Path creation returned", ret);
     delete[] command;
@@ -83,21 +82,67 @@ inline void init_filesystem() {
     }
 }
 
-inline void check_table_filesystem(std::string filepath) {
-    char* path = new char[filepath.size() + 1];
-    strcpy(path, filepath.c_str());
+# define CHECK_TABLE_FILESYSTEM(_filepath)  \
+    char* _path = new char[filepath.size() + 1 + strlen("/data")]; \
+    strcpy(_path, _filepath.c_str()); \
+    struct stat _buffer; \
+    if (stat(_path, &_buffer) != 0) { \
+        create_path(_path); \
+    } \
+    else { \
+        struct dirent *_ent; \
+        DIR *_dir = opendir(_path); \
+        while ((_ent = readdir(_dir)) != NULL) { \
+            std::remove((_filepath + _ent->d_name).c_str()); \
+        } \
+        closedir (_dir); \
+    } \
+    strcat(_path + strlen(_path), "/data"); \
+    FILE* _f = fopen(_path, "wb");
 
-    // If the path doesn't exist create it, otherwise delete all data files.
-    struct stat buffer;
-    if (stat(path, &buffer) != 0) {
-        create_path(path);
+# define GET_TABLE_FILE(filepath) \
+    char* _path = new char[filepath.size() + 1 + strlen("/data")]; \
+    strcpy(_path, filepath.c_str()); \
+    strcat(_path + strlen(_path), "/data"); \
+    FILE* _f = fopen(_path, "wb");
+
+inline void int_to_file(int* val, FILE* f) {
+    fwrite(val, sizeof(int), 1, f);
+}
+
+inline void int_arr_to_file(int num_records, int* data, FILE* f) {
+    fwrite(data, sizeof(int), num_records, f);
+}
+
+inline void bool_arr_to_file(int num_records, bool* data, FILE* f) {
+    fwrite(data, sizeof(bool), num_records, f);
+}
+
+inline void str_arr_to_file(int num_records, char** data, FILE* f) {
+    int length;
+    for (int i = 0; i < num_records; i++) {
+        length = strlen(data[i]);
+        fwrite(&length, sizeof(int), 1, f); // Flush string length.
+        fwrite(data[i], sizeof(char), length, f); // Print actual string.
     }
-    else {
-        struct dirent *ent;
-        DIR *dir = opendir(path);
-        while ((ent = readdir(dir)) != NULL) {
-            std::remove((filepath + ent->d_name).c_str());
-        }
-        closedir (dir);
+}
+
+inline void int_from_file(int* val, FILE* f) {
+    fread(val, sizeof(int), 1, f);
+}
+
+inline void int_arr_from_file(int num_records, int* data, FILE* f) {
+    fread(data, sizeof(int), num_records, f);
+}
+
+inline void bool_arr_from_file(int num_records, bool* data, FILE* f) {
+    fread(data, sizeof(bool), num_records, f);
+}
+
+inline void str_arr_from_file(int num_records, char** data, FILE* f) {
+    int length;
+    for (int i = 0; i < num_records; i++) {
+        fread(&length, sizeof(int), 1, f); // Read string length.
+        fread(data[i], sizeof(char), length, f); // Read actual string.
     }
 }

@@ -51,9 +51,10 @@ bool Table::insert_data(InMemoryDF* new_data) {
 
     // TODO: normal case.
 }
+
 bool Table::load_from_disk() {
     data = new InMemoryDF(schema);
-    return true;
+    return data->from_disk(m, name);
 }
 bool Table::flush_to_disk() {
     return data->to_disk(m, name);

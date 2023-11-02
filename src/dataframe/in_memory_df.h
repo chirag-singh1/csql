@@ -46,6 +46,7 @@ class InMemoryDF {
         Record* get_record();
         int get_num_records();
         bool to_disk(MetadataStore* m, std::string table_name);
+        bool from_disk(MetadataStore* m, std::string table_name);
         int get_capacity();
         int get_num_columns();
         DataType get_col_type(int ind);
@@ -75,4 +76,5 @@ class InMemoryDF {
 
         int num_records;
         int curr_capacity;
+        int version;
 };

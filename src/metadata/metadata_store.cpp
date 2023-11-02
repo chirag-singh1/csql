@@ -16,19 +16,20 @@ MetadataStore::MetadataStore() {
 
     active_db = DEFAULT_DB_NAME;
     LOG_DEBUG_RAW("Loading metadata");
-    for (rapidjson::Value::ConstMemberIterator itr = metadata.MemberBegin(); itr != metadata.MemberEnd(); ++itr) {
-        std::string db_name = std::string(itr->name.GetString());
+    for (auto& db : _out.GetObject()) {
+        LOG_DEBUG_RAW("Loading new db");
+        std::string db_name = std::string(db.name.GetString());
         databases[db_name] = new Database(db_name);
-        for (rapidjson::Value::ConstMemberIterator tbl_itr = itr->value.MemberBegin(); tbl_itr != itr->value.MemberEnd(); tbl_itr++) {
+        for (auto& tbl : db.value.GetObject()) {
+            std::string tbl_name = std::string(tbl.name.GetString());
             Schema* s = new Schema;
-            for (rapidjson::Value::ConstValueIterator col_itr = tbl_itr->value.Begin(); col_itr != tbl_itr->value.End(); col_itr++) {
-                std::string col_name = col_itr->FindMember(OPT_COL_NAMES)->value.GetString();
+            for (auto& col : tbl.value.GetArray()) {
+                std::string col_name = col.FindMember(OPT_COL_NAMES)->value.GetString();
                 s->columns.push_back(std::make_pair(col_name,
-                    col_itr->FindMember(OPT_COL_TYPES)->value.GetInt()));
+                    col.FindMember(OPT_COL_TYPES)->value.GetInt()));
                 s->column_indices[col_name] = s->columns.size();
             }
-            std::string tbl_name = std::string(tbl_itr->name.GetString());
-            Table* t = new Table(tbl_name, s, tbl_itr->value.Size(), this);
+            Table* t = new Table(tbl_name, s, tbl.value.Size(), this);
             databases.find(db_name)->second->attach_table(tbl_name, t);
         }
     }
