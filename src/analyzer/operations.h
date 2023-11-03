@@ -75,3 +75,13 @@ class OperationNode {
 # define OPT_CONST_VAL(i) "const_val" + std::to_string(i)
 # define OPT_SELECT_TARGET "selectTarget"
 # define OPT_NUM_VALUES "numValues"
+# define OPT_FROM_CLAUSE "fromClause"
+# define OPT_RANGE_VAR "RangeVar"
+# define OPT_SELECT_TARGETS "targetList"
+# define OPT_SELECT_RESTARGET "ResTarget"
+# define OPT_SELECT_COLREF "ColumnRef"
+# define OPT_SELECT_FIELDS "fields"
+# define OPT_SELECT_ALL "A_Star"
+# define OPT_VAL "val"
+# define OPT_SELECT_NUM_TARGETS "selNumTargets"
+# define OPT_SELECT_TARGET_REF(i) "select_target"

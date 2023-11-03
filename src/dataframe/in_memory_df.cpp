@@ -36,7 +36,7 @@ InMemoryDF::InMemoryDF(Schema* schema, int initial_capacity) {
 InMemoryDF::InMemoryDF(InMemoryDF* original) {
     // Copy column types and initialize data.
     std::vector<DataType> ctypes(original->get_num_columns(), TYPE_INT);
-    for (int i = 0; i < get_num_columns(); i++) {
+    for (int i = 0; i < original->get_num_columns(); i++) {
         ctypes[i] = original->get_col_type(i);
     }
     init(ctypes, original->get_capacity());

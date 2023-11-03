@@ -20,6 +20,8 @@ class Table {
         bool load_from_disk();
         bool flush_to_disk();
 
+        InMemoryDF* project_all();
+
     private:
         void cleanup_data();
 

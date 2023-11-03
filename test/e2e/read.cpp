@@ -10,5 +10,5 @@ TEST(Read, select) {
     MetadataStore m;
     execute_query(&analyzer, &m, "CREATE TABLE tbl (a INT, b STRING, c BOOl)");
     execute_query(&analyzer, &m, "INSERT INTO tbl VALUES (1, 'abc', true)");
-    // execute_query(&analyzer, &m, "SELECT * FROM tbl");
+    execute_query(&analyzer, &m, "SELECT * FROM tbl");
 }

@@ -121,6 +121,30 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                     i++;
                 }
             }
+            // Select statement comes from a FROM statement.
+            // TODO: implement filtering, joins, and multiple tables in select.
+            else if (sel_op.HasMember(OPT_FROM_CLAUSE)) {
+                const rapidjson::Value& val = sel_op.FindMember(OPT_FROM_CLAUSE)->value.GetArray().Begin()->GetObject();
+                if (val.HasMember(OPT_RANGE_VAR)) {
+                    LOG_DEBUG_RAW(val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
+                    o->set_string_option(OPT_SELECT_TARGET, val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
+                }
+
+                // Set targets.
+                // TODO support individual columns and functions.
+                const rapidjson::Value& targets = sel_op.FindMember(OPT_SELECT_TARGETS)->value;
+                for (auto itr = targets.Begin(); itr != targets.End(); ++itr) {
+                    const rapidjson::Value& target = itr->FindMember(OPT_SELECT_RESTARGET)->
+                        value.GetObject().FindMember(OPT_VAL)->value.GetObject().FindMember(OPT_SELECT_COLREF)->
+                        value.GetObject().FindMember(OPT_SELECT_FIELDS)->value.GetArray().Begin()->GetObject();
+                    // Take only first from each field.
+                    // TODO: column support.
+                    if (target.HasMember(OPT_SELECT_ALL)) {
+                        o->set_int_option(OPT_SELECT_NUM_TARGETS, 1);
+                        o->set_string_option(OPT_SELECT_TARGET_REF(0), OPT_SELECT_ALL);
+                    }
+                }
+            }
         }
 
         return o;

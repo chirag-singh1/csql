@@ -57,6 +57,14 @@ bool Table::insert_data(InMemoryDF* new_data) {
     return false;
 }
 
+// Returns updated copy of current data.
+InMemoryDF* Table::project_all() {
+    if (is_stale) {
+        load_from_disk();
+    }
+    return new InMemoryDF(data);
+}
+
 bool Table::load_from_disk() {
     data = new InMemoryDF(schema);
     return data->from_disk(m, name);

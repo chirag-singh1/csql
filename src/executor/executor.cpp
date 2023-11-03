@@ -94,5 +94,19 @@ void Executor::execute_internal(OperationNode* curr_op) {
             curr_result->insert_record(*r);
             destroy_record(r);
         }
+        // Projection operation on InMemoryDF.
+        else {
+            Table* table_to_select = metadata_store->get_table(curr_op->get_string_option(OPT_SELECT_TARGET));
+            if (table_to_select != nullptr) {
+                // Special case: no-op (project all).
+                if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) == 1 && OPT_SELECT_ALL == curr_op->get_string_option(OPT_SELECT_TARGET_REF(0))) {
+                    curr_result = table_to_select->project_all();
+                    curr_result->print();
+                }
+            }
+            else {
+                LOG_DEBUG("Table does not exist", metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME)));
+            }
+        }
     }
 }
