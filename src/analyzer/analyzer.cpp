@@ -112,7 +112,7 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                     }
                     else if (val.HasMember(OPT_BOOL_VAL)) {
                         o->set_int_option(OPT_CONST_TYPE(i), TYPE_BOOL);
-                        o->set_bool_option(OPT_CONST_VAL(i), val.FindMember(OPT_BOOL_VAL)->value.FindMember(OPT_BOOL_VAL)->value.GetBool());
+                        o->set_bool_option(OPT_CONST_VAL(i), val.FindMember(OPT_BOOL_VAL)->value.HasMember(OPT_BOOL_VAL));
                     }
                     else {
                         JSON_LOG_DEBUG("Unsupported type found in", &val);

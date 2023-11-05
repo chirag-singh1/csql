@@ -71,6 +71,7 @@ InMemoryDF* Table::project_cols(std::vector<std::string> cols) {
     }
 
     std::vector<int> inds;
+    LOG_DEBUG_VEC("Projecting columns", cols);
     for (int i = 0; i < cols.size(); i++) {
         inds.push_back(schema->column_indices[cols[i]]);
     }

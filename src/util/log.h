@@ -10,6 +10,16 @@
 # define LOG_DEBUG(title, text) \
     std::cout << "[DEBUG] " << title << ": " << text << std::endl;
 
+# define LOG_DEBUG_VEC(title, vec) \
+    std::cout << "[DEBUG] " << title << ": "; \
+    for (int i = 0; i < vec.size(); i++) { \
+        std::cout << vec[i]; \
+        if (i != vec.size() - 1){ \
+            std::cout << ", "; \
+        } \
+    } \
+    std::cout << std::endl;
+
 # define LOG_DEBUG_RAW(text) \
     std::cout << "[DEBUG] " << text << std::endl;
 
