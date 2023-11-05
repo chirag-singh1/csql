@@ -80,6 +80,13 @@ bool MetadataStore::drop_db(std::string name, bool missing_ok) {
     return true;
 }
 
+bool MetadataStore::drop_table(std::string name) {
+    LOG_DEBUG("Deleting table from metadata", name);
+    bool result = databases.find(active_db)->second->drop_table(this, name);
+    persist_metadata();
+    return result;
+}
+
 bool MetadataStore::use_db(std::string name) {
     LOG_DEBUG("Using database", name);
     if(!db_exists(name)) {

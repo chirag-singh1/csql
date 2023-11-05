@@ -38,6 +38,16 @@ bool Database::create_table(MetadataStore* m, std::string name, std::vector<std:
     return new_table != nullptr;
 }
 
+bool Database::drop_table(MetadataStore* m, std::string name) {
+    if (!table_exists(name)) {
+        LOG_DEBUG("No table", name);
+        return false;
+    }
+    delete tables[name];
+    tables.erase(tables.find(name));
+    return true;
+}
+
 Table* Database::get_table(std::string name) {
     if (table_exists(name)) {
         return tables[name];

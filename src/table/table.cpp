@@ -1,5 +1,7 @@
 #include "table.h"
+#include "../util/file.h"
 #include "../metadata/metadata.h"
+#include "../metadata/metadata_store.h"
 
 Table::Table(std::string name, Schema* schema, int num_columns, MetadataStore* m)
 : name(name), schema(schema), num_columns(num_columns), is_stale(true), data(nullptr), m(m) {}
@@ -85,4 +87,10 @@ bool Table::load_from_disk() {
 }
 bool Table::flush_to_disk() {
     return data->to_disk(m, name);
+}
+
+bool Table::delete_data() {
+    LOG_DEBUG("Deleting data at", m->get_table_filepath(name));
+    DELETE_TABLE_DATA(m->get_table_filepath(name));
+    LOG_DEBUG_RAW("Data deleted");
 }

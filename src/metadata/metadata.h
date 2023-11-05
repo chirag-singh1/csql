@@ -18,6 +18,7 @@ class Database {
         bool table_exists(std::string name);
         void attach_table(std::string name, Table* t);
         bool create_table(MetadataStore* m, std::string name, std::vector<std::pair<std::string, std::string>> cols);
+        bool drop_table(MetadataStore* m, std::string name);
         Table* get_table(std::string name);
         std::unordered_map<std::string, Table*>* get_tables();
 

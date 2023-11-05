@@ -20,6 +20,7 @@ class Table {
         bool insert_data(InMemoryDF* data);
         bool load_from_disk();
         bool flush_to_disk();
+        bool delete_data();
 
         InMemoryDF* project_all();
         InMemoryDF* project_cols(std::vector<std::string> cols);

@@ -58,6 +58,12 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             o->set_bool_option(OPT_DB_MISSING_OK, options.FindMember(OPT_DB_MISSING_OK)->value.IsBool()
                 && options.FindMember(OPT_DB_MISSING_OK)->value.GetBool());
         }
+        else if (operation_lookup.at(op_name) == OP_DROP_TBL) { // DROP TABLE
+            // TODO: support more than one drop at a time.
+            o->set_string_option(OPT_TABLE_NAME, options.FindMember(OPT_OBJECTS)->value.Begin()->
+                FindMember(OPT_LIST)->value.FindMember(OPT_ITEMS)->value.Begin()->FindMember(OPT_STRING)->
+                value.FindMember(OPT_STR_VAL)->value.GetString());
+        }
         else if (operation_lookup.at(op_name) == OP_CREATE) { // CREATE TABLE
             // Set table name and number of columns;
             o->set_string_option(OPT_TABLE_NAME, options.FindMember(OPT_RELATION)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
@@ -89,6 +95,8 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             o->set_child(query_to_node_internal(&options.FindMember(OPT_SELECT_0)->value), 0);
         }
         else if (operation_lookup.at(op_name) == OP_SELECT) {
+            // WHERE clause on the SELECT. Pushdown the filter.
+            // TODO
             const rapidjson::Value& sel_op = options.FindMember(OPT_SELECT_1)->value;
             // Select statement comes from list of values.
             if (sel_op.HasMember(OPT_VALUE_LIST)) {
@@ -126,7 +134,6 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             else if (sel_op.HasMember(OPT_FROM_CLAUSE)) {
                 const rapidjson::Value& val = sel_op.FindMember(OPT_FROM_CLAUSE)->value.GetArray().Begin()->GetObject();
                 if (val.HasMember(OPT_RANGE_VAR)) {
-                    LOG_DEBUG_RAW(val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
                     o->set_string_option(OPT_SELECT_TARGET, val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
                 }
 

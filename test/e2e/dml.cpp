@@ -10,5 +10,5 @@ TEST(DML, testInsertValues) {
     MetadataStore m;
     execute_query(&analyzer, &m, "CREATE TABLE tbl (a INT, b STRING, c BOOl)");
     execute_query(&analyzer, &m, "INSERT INTO tbl VALUES (1, 'abc', true)");
-    execute_query(&analyzer, &m, "INSERT INTO tbl VALUES (2, 'def', true)");
+    execute_query(&analyzer, &m, "INSERT INTO tbl VALUES (2, 'def', false)");
 }

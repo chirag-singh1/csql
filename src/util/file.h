@@ -83,7 +83,7 @@ inline void init_filesystem() {
 }
 
 # define CHECK_TABLE_FILESYSTEM(_filepath)  \
-    char* _path = new char[filepath.size() + 1 + strlen("/data")]; \
+    char* _path = new char[_filepath.size() + 1 + strlen("/data")]; \
     strcpy(_path, _filepath.c_str()); \
     struct stat _buffer; \
     if (stat(_path, &_buffer) != 0) { \
@@ -100,11 +100,24 @@ inline void init_filesystem() {
     strcat(_path + strlen(_path), "/data"); \
     FILE* _f = fopen(_path, "wb");
 
-# define GET_TABLE_FILE(filepath) \
-    char* _path = new char[filepath.size() + 1 + strlen("/data")]; \
-    strcpy(_path, filepath.c_str()); \
+# define GET_TABLE_FILE(_filepath) \
+    char* _path = new char[_filepath.size() + 1 + strlen("/data")]; \
+    strcpy(_path, _filepath.c_str()); \
     strcat(_path + strlen(_path), "/data"); \
     FILE* _f = fopen(_path, "rb");
+
+# define DELETE_TABLE_DATA(_filepath) \
+    char* _path = new char[_filepath.size() + 1]; \
+    strcpy(_path, _filepath.c_str()); \
+    struct stat _buffer; \
+    if (stat(_path, &_buffer) == 0) { \
+        struct dirent *_ent; \
+        DIR *_dir = opendir(_path); \
+        while ((_ent = readdir(_dir)) != NULL) { \
+            std::remove((_filepath + _ent->d_name).c_str()); \
+        } \
+        closedir (_dir); \
+    }
 
 inline void int_to_file(int* val, FILE* f) {
     fwrite(val, sizeof(int), 1, f);

@@ -46,6 +46,17 @@ void Executor::execute_internal(OperationNode* curr_op) {
 
         metadata_store->create_table(curr_op->get_string_option(OPT_TABLE_NAME), cols);
     }
+    else if (curr_op->get_operation() == OP_DROP_TBL) {
+        LOG_DEBUG("DROP TABLE", curr_op->get_string_option(OPT_TABLE_NAME));
+        Table* table_to_delete = metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME));
+        if (table_to_delete != nullptr) {
+            table_to_delete->delete_data();
+            metadata_store->drop_table(curr_op->get_string_option(OPT_TABLE_NAME));
+        }
+        else {
+            LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_TABLE_NAME));
+        }
+    }
     else if (curr_op->get_operation() == OP_INSERT) {
         LOG_DEBUG("INSERT", curr_op->get_string_option(OPT_TABLE_NAME));
         assert(curr_op->get_num_children() == 1); // Expect one child.
@@ -56,7 +67,7 @@ void Executor::execute_internal(OperationNode* curr_op) {
             table_to_insert->insert_data(curr_result);
         }
         else {
-            LOG_DEBUG("Table does not exist", metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME)));
+            LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_TABLE_NAME));
         }
     }
     else if (curr_op->get_operation() == OP_SELECT) {
@@ -113,7 +124,7 @@ void Executor::execute_internal(OperationNode* curr_op) {
                 }
             }
             else {
-                LOG_DEBUG("Table does not exist", metadata_store->get_table(curr_op->get_string_option(OPT_TABLE_NAME)));
+                LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_SELECT_TARGET));
             }
         }
     }
