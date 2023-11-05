@@ -25,9 +25,9 @@ MetadataStore::MetadataStore() {
             Schema* s = new Schema;
             for (auto& col : tbl.value.GetArray()) {
                 std::string col_name = col.FindMember(OPT_COL_NAMES)->value.GetString();
+                s->column_indices[col_name] = s->columns.size();
                 s->columns.push_back(std::make_pair(col_name,
                     col.FindMember(OPT_COL_TYPES)->value.GetInt()));
-                s->column_indices[col_name] = s->columns.size();
             }
             Table* t = new Table(tbl_name, s, tbl.value.Size(), this);
             databases.find(db_name)->second->attach_table(tbl_name, t);

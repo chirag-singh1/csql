@@ -39,6 +39,7 @@ class InMemoryDF {
         InMemoryDF(Schema* schema, int initial_capacity);
         InMemoryDF(std::vector<DataType> col_types, int initial_capacity);
         InMemoryDF(InMemoryDF* original);
+        InMemoryDF(InMemoryDF* original, std::vector<int> projected_cols);
         ~InMemoryDF();
         InMemoryDF* deep_clone();
 

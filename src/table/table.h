@@ -6,6 +6,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 class Schema;
 class MetadataStore;
@@ -21,6 +22,7 @@ class Table {
         bool flush_to_disk();
 
         InMemoryDF* project_all();
+        InMemoryDF* project_cols(std::vector<std::string> cols);
 
     private:
         void cleanup_data();

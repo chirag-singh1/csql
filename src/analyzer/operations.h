@@ -84,4 +84,4 @@ class OperationNode {
 # define OPT_SELECT_ALL "A_Star"
 # define OPT_VAL "val"
 # define OPT_SELECT_NUM_TARGETS "selNumTargets"
-# define OPT_SELECT_TARGET_REF(i) "select_target"
+# define OPT_SELECT_TARGET_REF(i) "select_target" + std::to_string(i)

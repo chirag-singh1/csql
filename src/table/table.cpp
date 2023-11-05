@@ -65,6 +65,19 @@ InMemoryDF* Table::project_all() {
     return new InMemoryDF(data);
 }
 
+InMemoryDF* Table::project_cols(std::vector<std::string> cols) {
+    if (is_stale) {
+        load_from_disk();
+    }
+
+    std::vector<int> inds;
+    for (int i = 0; i < cols.size(); i++) {
+        inds.push_back(schema->column_indices[cols[i]]);
+    }
+
+    return new InMemoryDF(data, inds);
+}
+
 bool Table::load_from_disk() {
     data = new InMemoryDF(schema);
     return data->from_disk(m, name);

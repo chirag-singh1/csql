@@ -60,7 +60,35 @@ InMemoryDF::InMemoryDF(InMemoryDF* original) {
             }
         }
     }
+}
 
+InMemoryDF::InMemoryDF(InMemoryDF* original, std::vector<int> projected_cols) {
+    // Copy column types and initialize data.
+    std::vector<DataType> ctypes(projected_cols.size(), TYPE_INT);
+    for (int i = 0; i < projected_cols.size(); i++) {
+        ctypes[i] = original->get_col_type(projected_cols[i]);
+    }
+    init(ctypes, original->get_capacity());
+
+    // Copy data.
+    num_records = original->get_num_records();
+    int num_columns = get_num_columns();
+    for (int i = 0; i < projected_cols.size(); i++) {
+        if (ctypes[i] == TYPE_INT) {
+            memcpy(int_data[int_cols[i]], original->get_int_data(projected_cols[i]), sizeof(int) * num_records);
+        }
+        else if (ctypes[i] == TYPE_BOOL) {
+            memcpy(bool_data[bool_cols[i]], original->get_bool_data(projected_cols[i]), sizeof(bool) * num_records);
+        }
+        else if (ctypes[i] == TYPE_STRING) {
+            for (int j = 0; j < num_records; j++) {
+                char** orig_data = original->get_str_data(projected_cols[i]);
+                int length_to_copy = strlen(orig_data[j]) + 1;
+                str_data[str_cols[i]][j] = new char[length_to_copy];
+                memcpy(str_data[str_cols[i]][j], orig_data[j], sizeof(char) * length_to_copy);
+            }
+        }
+    }
 }
 
 void InMemoryDF::init(std::vector<DataType> col_types, int initial_capacity) {

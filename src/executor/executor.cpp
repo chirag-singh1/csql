@@ -99,8 +99,16 @@ void Executor::execute_internal(OperationNode* curr_op) {
             Table* table_to_select = metadata_store->get_table(curr_op->get_string_option(OPT_SELECT_TARGET));
             if (table_to_select != nullptr) {
                 // Special case: no-op (project all).
-                if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) == 1 && OPT_SELECT_ALL == curr_op->get_string_option(OPT_SELECT_TARGET_REF(0))) {
+                if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) == 1 && curr_op->get_string_option(OPT_SELECT_TARGET_REF(0)) == OPT_SELECT_ALL) {
                     curr_result = table_to_select->project_all();
+                    curr_result->print();
+                }
+                else {
+                    std::vector<std::string> projected_cols;
+                    for (int i = 0; i < curr_op->get_int_option(OPT_SELECT_NUM_TARGETS); i++) {
+                        projected_cols.push_back(curr_op->get_string_option(OPT_SELECT_TARGET_REF(i)));
+                    }
+                    curr_result = table_to_select->project_cols(projected_cols);
                     curr_result->print();
                 }
             }

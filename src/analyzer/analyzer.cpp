@@ -133,6 +133,7 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                 // Set targets.
                 // TODO support individual columns and functions.
                 const rapidjson::Value& targets = sel_op.FindMember(OPT_SELECT_TARGETS)->value;
+                int i = 0;
                 for (auto itr = targets.Begin(); itr != targets.End(); ++itr) {
                     const rapidjson::Value& target = itr->FindMember(OPT_SELECT_RESTARGET)->
                         value.GetObject().FindMember(OPT_VAL)->value.GetObject().FindMember(OPT_SELECT_COLREF)->
@@ -140,10 +141,15 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                     // Take only first from each field.
                     // TODO: column support.
                     if (target.HasMember(OPT_SELECT_ALL)) {
-                        o->set_int_option(OPT_SELECT_NUM_TARGETS, 1);
                         o->set_string_option(OPT_SELECT_TARGET_REF(0), OPT_SELECT_ALL);
                     }
+                    else if (target.HasMember(OPT_STRING)) {
+                        o->set_string_option(OPT_SELECT_TARGET_REF(i), target.FindMember(OPT_STRING)->
+                            value.GetObject().FindMember(OPT_STR_VAL)->value.GetString());
+                    }
+                    i++;
                 }
+                o->set_int_option(OPT_SELECT_NUM_TARGETS, i);
             }
         }
 
