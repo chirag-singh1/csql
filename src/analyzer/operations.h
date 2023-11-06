@@ -37,7 +37,7 @@ class OperationNode {
 
 # define NUM_SUPPORTED_OPERATIONS 6
 # define OPERATIONS "CreateStmt", "CreatedbStmt", "DropdbStmt", "InsertStmt", \
-    "SelectStmt", "DropStmt"
+    "SelectStmt", "DropStmt", "_"
 
 # define OP_UNSUPPORTED -2
 # define OP_NONE -1
@@ -47,6 +47,7 @@ class OperationNode {
 # define OP_INSERT 3
 # define OP_SELECT 4
 # define OP_DROP_TBL 5
+# define OP_FILTER 6
 
 # define OPT_DB_NAME "dbname"
 # define OPT_DB_MISSING_OK "missing_ok"
@@ -87,3 +88,14 @@ class OperationNode {
 # define OPT_SELECT_NUM_TARGETS "selNumTargets"
 # define OPT_SELECT_TARGET_REF(i) "select_target" + std::to_string(i)
 # define OPT_OBJECTS "objects"
+# define OPT_FILTER "whereClause"
+# define OPT_EXPR "A_Expr"
+# define OPT_KIND "kind"
+# define OPT_FILTER_EQUALS = "="
+# define OPT_LEXPR "lexpr"
+# define OPT_REXPR "rexpr"
+# define OPT_FILTER_EXPR_VAL(level, is_left)"filter_expr" + std::string((is_left ? "_l" : "_r")) + std::to_string(level)
+# define OPT_FILTER_EXPR_TYPE(level, is_left)"filter_expr_ref" + std::string((is_left ? "_l" : "_r")) + std::to_string(level)
+# define OPT_FILTER_EXPR(level) "filter_expr" + std::to_string(level)
+# define OPT_NAME "name"
+# define OPT_SIMPLE_EXPR "simple_expr"

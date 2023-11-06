@@ -35,6 +35,73 @@ OperationNode* Analyzer::query_to_node(char* parsed_query) {
     return output_node;
 }
 
+void parse_col_ref(const rapidjson::Value& val, OperationNode* o, int ind) {
+    const rapidjson::Value& target = val.FindMember(OPT_SELECT_COLREF)->
+        value.GetObject().FindMember(OPT_SELECT_FIELDS)->value.GetArray().Begin()->GetObject();
+    // Take only first from each field.
+    // TODO: column support.
+    if (target.HasMember(OPT_SELECT_ALL)) {
+        o->set_string_option(OPT_SELECT_TARGET_REF(0), OPT_SELECT_ALL);
+    }
+    else if (target.HasMember(OPT_STRING)) {
+        o->set_string_option(OPT_SELECT_TARGET_REF(ind), target.FindMember(OPT_STRING)->
+            value.GetObject().FindMember(OPT_STR_VAL)->value.GetString());
+    }
+}
+
+void parse_const_expr(const rapidjson::Value& val, OperationNode* o, std::string type_key, std::string key) {
+    if (val.HasMember(OPT_INT_VAL)) {
+        o->set_int_option(type_key, TYPE_INT);
+        o->set_int_option(key, val.FindMember(OPT_INT_VAL)->value.FindMember(OPT_INT_VAL)->value.GetInt());
+    }
+    else if (val.HasMember(OPT_STR_VAL)) {
+        o->set_int_option(type_key, TYPE_STRING);
+        o->set_string_option(key, val.FindMember(OPT_STR_VAL)->value.FindMember(OPT_STR_VAL)->value.GetString());
+    }
+    else if (val.HasMember(OPT_BOOL_VAL)) {
+        o->set_int_option(type_key, TYPE_BOOL);
+        o->set_bool_option(key, val.FindMember(OPT_BOOL_VAL)->value.HasMember(OPT_BOOL_VAL));
+    }
+    else {
+        JSON_LOG_DEBUG("Unsupported type found in", &val);
+        assert(false); // TODO: better error handling for unsupported type.
+    }
+}
+
+void parse_filter_expr(const rapidjson::Value& val, bool is_left, OperationNode* n, int level) {
+    JSON_LOG_DEBUG("Parsing filter expression", &val);
+    if (val.HasMember(OPT_SELECT_COLREF)) {
+        n->set_int_option(OPT_FILTER_EXPR_TYPE(level, is_left), TYPE_COL_REF);
+        n->set_string_option(OPT_FILTER_EXPR_VAL(level, is_left), val.FindMember(OPT_SELECT_COLREF)->
+        value.GetObject().FindMember(OPT_SELECT_FIELDS)->value.GetArray().Begin()->GetObject().FindMember(OPT_STRING)->
+            value.GetObject().FindMember(OPT_STR_VAL)->value.GetString());
+    }
+    else {
+        parse_const_expr(val.FindMember(OPT_CONST)->value, n, OPT_FILTER_EXPR_TYPE(level, is_left), OPT_FILTER_EXPR_VAL(level, is_left));
+    }
+}
+
+OperationNode* parse_filter(const rapidjson::Value* filter) {
+    OperationNode* filter_node = new OperationNode(OP_FILTER, 0, "Filter");
+    JSON_LOG_DEBUG("Parsing filter", filter);
+    if (filter->HasMember(OPT_EXPR)) {
+        std::string op = filter->FindMember(OPT_EXPR)->
+            value.FindMember(OPT_NAME)->value.GetArray().Begin()->
+            FindMember(OPT_STRING)->value.GetObject().FindMember(OPT_STR_VAL)->value.GetString();
+        parse_filter_expr(filter->FindMember(OPT_EXPR)->
+            value.FindMember(OPT_LEXPR)->value, true, filter_node, 0);
+        parse_filter_expr(filter->FindMember(OPT_EXPR)->
+            value.FindMember(OPT_REXPR)->value, false, filter_node, 0);
+        filter_node->set_bool_option(OPT_SIMPLE_EXPR, true);
+        filter_node->set_string_option(OPT_FILTER_EXPR(0), op);
+    }
+    else {
+        // TODO: handle complex boolean predicates.
+    }
+
+    return filter_node;
+}
+
 OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
     JSON_LOG_DEBUG("Analyzing statement", query);
 
@@ -95,9 +162,12 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             o->set_child(query_to_node_internal(&options.FindMember(OPT_SELECT_0)->value), 0);
         }
         else if (operation_lookup.at(op_name) == OP_SELECT) {
-            // WHERE clause on the SELECT. Pushdown the filter.
-            // TODO
             const rapidjson::Value& sel_op = options.FindMember(OPT_SELECT_1)->value;
+            // WHERE clause on the SELECT. Pushdown the filter.
+            if (sel_op.HasMember(OPT_FILTER)) {
+                o->set_num_children(1);
+                o->set_child(parse_filter(&sel_op.FindMember(OPT_FILTER)->value), 0);
+            }
             // Select statement comes from list of values.
             if (sel_op.HasMember(OPT_VALUE_LIST)) {
                 // Currently, only gets the first list from valuesList.
@@ -110,22 +180,7 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                 for (auto itr = vals.Begin(); itr != vals.End(); ++itr) {
                     const rapidjson::Value& val = itr->FindMember(OPT_CONST)->value;
                     JSON_LOG_DEBUG("text", &val);
-                    if (val.HasMember(OPT_INT_VAL)) {
-                       o->set_int_option(OPT_CONST_TYPE(i), TYPE_INT);
-                       o->set_int_option(OPT_CONST_VAL(i), val.FindMember(OPT_INT_VAL)->value.FindMember(OPT_INT_VAL)->value.GetInt());
-                    }
-                    else if (val.HasMember(OPT_STR_VAL)) {
-                        o->set_int_option(OPT_CONST_TYPE(i), TYPE_STRING);
-                        o->set_string_option(OPT_CONST_VAL(i), val.FindMember(OPT_STR_VAL)->value.FindMember(OPT_STR_VAL)->value.GetString());
-                    }
-                    else if (val.HasMember(OPT_BOOL_VAL)) {
-                        o->set_int_option(OPT_CONST_TYPE(i), TYPE_BOOL);
-                        o->set_bool_option(OPT_CONST_VAL(i), val.FindMember(OPT_BOOL_VAL)->value.HasMember(OPT_BOOL_VAL));
-                    }
-                    else {
-                        JSON_LOG_DEBUG("Unsupported type found in", &val);
-                        assert(false); // TODO: better error handling for unsupported type.
-                    }
+                    parse_const_expr(val, o, OPT_CONST_TYPE(i), OPT_CONST_VAL(i));
                     i++;
                 }
             }
@@ -134,7 +189,14 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
             else if (sel_op.HasMember(OPT_FROM_CLAUSE)) {
                 const rapidjson::Value& val = sel_op.FindMember(OPT_FROM_CLAUSE)->value.GetArray().Begin()->GetObject();
                 if (val.HasMember(OPT_RANGE_VAR)) {
-                    o->set_string_option(OPT_SELECT_TARGET, val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString());
+                    std::string table_ref = val.FindMember(OPT_RANGE_VAR)->value.FindMember(OPT_TABLE_NAME)->value.GetString();
+                    o->set_string_option(OPT_SELECT_TARGET, table_ref);
+                    // Push table reference down to filter if applicable.
+                    for (int i = 0; i < o->get_num_children(); i++) {
+                        if (o->get_children()[i]->get_operation() == OP_FILTER) {
+                            o->get_children()[i]->set_string_option(OPT_SELECT_TARGET, table_ref);
+                        }
+                    }
                 }
 
                 // Set targets.
@@ -142,18 +204,7 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
                 const rapidjson::Value& targets = sel_op.FindMember(OPT_SELECT_TARGETS)->value;
                 int i = 0;
                 for (auto itr = targets.Begin(); itr != targets.End(); ++itr) {
-                    const rapidjson::Value& target = itr->FindMember(OPT_SELECT_RESTARGET)->
-                        value.GetObject().FindMember(OPT_VAL)->value.GetObject().FindMember(OPT_SELECT_COLREF)->
-                        value.GetObject().FindMember(OPT_SELECT_FIELDS)->value.GetArray().Begin()->GetObject();
-                    // Take only first from each field.
-                    // TODO: column support.
-                    if (target.HasMember(OPT_SELECT_ALL)) {
-                        o->set_string_option(OPT_SELECT_TARGET_REF(0), OPT_SELECT_ALL);
-                    }
-                    else if (target.HasMember(OPT_STRING)) {
-                        o->set_string_option(OPT_SELECT_TARGET_REF(i), target.FindMember(OPT_STRING)->
-                            value.GetObject().FindMember(OPT_STR_VAL)->value.GetString());
-                    }
+                    parse_col_ref(itr->FindMember(OPT_SELECT_RESTARGET)->value.GetObject().FindMember(OPT_VAL)->value.GetObject(), o, i);
                     i++;
                 }
                 o->set_int_option(OPT_SELECT_NUM_TARGETS, i);

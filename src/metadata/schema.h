@@ -7,6 +7,7 @@ typedef int DataType;
 # define NUM_SUPPORTED_DATATYPES 3
 # define DATATYPES "int4", "string", "bool"
 
+# define TYPE_COL_REF -1
 # define TYPE_INT 0
 # define TYPE_STRING 1
 # define TYPE_BOOL 2

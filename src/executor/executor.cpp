@@ -20,13 +20,14 @@ Executor::~Executor() {
 
 void Executor::execute() {
     LOG_DEBUG("Executor created, num ops", root->get_num_children());
-    for (int i = 0; i < root->get_num_children(); i++) {
-        execute_internal(root->get_children()[i]);
-    }
+    execute_internal(root);
     LOG_DEBUG("Execution complete, num ops", root->get_num_children());
 }
 
 void Executor::execute_internal(OperationNode* curr_op) {
+    for (int i = 0; i < curr_op->get_num_children(); i++) {
+        execute_internal(curr_op->get_children()[i]);
+    }
     if (curr_op->get_operation() == OP_CREATE_DB) {
         LOG_DEBUG("CREATE DATABASE", curr_op->get_string_option(OPT_DB_NAME));
         metadata_store->create_db(curr_op->get_string_option(OPT_DB_NAME));
@@ -126,6 +127,16 @@ void Executor::execute_internal(OperationNode* curr_op) {
             else {
                 LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_SELECT_TARGET));
             }
+        }
+    }
+    else if (curr_op->get_operation() == OP_FILTER) {
+        LOG_DEBUG("FILTER", curr_op->get_string_option(OPT_SELECT_TARGET));
+        Table* table_to_filter = metadata_store->get_table(curr_op->get_string_option(OPT_SELECT_TARGET));
+        if (table_to_filter != nullptr) {
+
+        }
+        else {
+            LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_SELECT_TARGET));
         }
     }
 }
