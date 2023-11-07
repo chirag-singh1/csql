@@ -3,6 +3,7 @@
 #include "../metadata/schema.h"
 #include "../dataframe/in_memory_df.h"
 #include "../util/log.h"
+#include "../analyzer/operations.h"
 
 #include <string>
 #include <unordered_map>
@@ -10,6 +11,7 @@
 
 class Schema;
 class MetadataStore;
+class SimpleFilter;
 
 class Table {
     public:
@@ -21,9 +23,12 @@ class Table {
         bool load_from_disk();
         bool flush_to_disk();
         bool delete_data();
+        int get_col_ind(std::string col_name);
 
         InMemoryDF* project_all();
         InMemoryDF* project_cols(std::vector<std::string> cols);
+        InMemoryDF* project_cols(std::vector<std::string> cols, InMemoryDF* data_override);
+        InMemoryDF* simple_filter(SimpleFilter* f);
 
     private:
         void cleanup_data();

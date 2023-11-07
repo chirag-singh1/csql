@@ -5,6 +5,7 @@
 #include "../metadata/metadata.h"
 #include "../util/log.h"
 #include "../table/table.h"
+#include "../filter/filter.h"
 
 #include <cstring>
 #include <string>
@@ -44,7 +45,6 @@ void Executor::execute_internal(OperationNode* curr_op) {
                 curr_op->get_string_option(OPT_COL_NAME(i)),
                 curr_op->get_string_option(OPT_COL_TYPE(i))));
         }
-
         metadata_store->create_table(curr_op->get_string_option(OPT_TABLE_NAME), cols);
     }
     else if (curr_op->get_operation() == OP_DROP_TBL) {
@@ -108,21 +108,28 @@ void Executor::execute_internal(OperationNode* curr_op) {
         }
         // Projection operation on InMemoryDF.
         else {
+            std::vector<std::string> projected_cols;
+            for (int i = 0; i < curr_op->get_int_option(OPT_SELECT_NUM_TARGETS); i++) {
+                projected_cols.push_back(curr_op->get_string_option(OPT_SELECT_TARGET_REF(i)));
+            }
             Table* table_to_select = metadata_store->get_table(curr_op->get_string_option(OPT_SELECT_TARGET));
             if (table_to_select != nullptr) {
-                // Special case: no-op (project all).
-                if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) == 1 && curr_op->get_string_option(OPT_SELECT_TARGET_REF(0)) == OPT_SELECT_ALL) {
-                    curr_result = table_to_select->project_all();
-                    curr_result->print();
-                }
-                else {
-                    std::vector<std::string> projected_cols;
-                    for (int i = 0; i < curr_op->get_int_option(OPT_SELECT_NUM_TARGETS); i++) {
-                        projected_cols.push_back(curr_op->get_string_option(OPT_SELECT_TARGET_REF(i)));
+                // InMemoryDF already loaded by a child (for example, a filter).
+                if (curr_op->get_bool_option(OPT_USE_IN_MEMORY)) {
+                    LOG_DEBUG_RAW("InMemoryDF found from child operation");
+                    if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) != 1 || curr_op->get_string_option(OPT_SELECT_TARGET_REF(0)) != OPT_SELECT_ALL) {
+                        curr_result = table_to_select->project_cols(projected_cols, curr_result);
                     }
-                    curr_result = table_to_select->project_cols(projected_cols);
-                    curr_result->print();
                 }
+                // Special case: no-op (project all).
+                else if (curr_op->get_int_option(OPT_SELECT_NUM_TARGETS) == 1 && curr_op->get_string_option(OPT_SELECT_TARGET_REF(0)) == OPT_SELECT_ALL) {
+                    curr_result = table_to_select->project_all();
+                }
+                // Base case: project (from disk if necessary).
+                else {
+                    curr_result = table_to_select->project_cols(projected_cols);
+                }
+                curr_result->print();
             }
             else {
                 LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_SELECT_TARGET));
@@ -133,7 +140,12 @@ void Executor::execute_internal(OperationNode* curr_op) {
         LOG_DEBUG("FILTER", curr_op->get_string_option(OPT_SELECT_TARGET));
         Table* table_to_filter = metadata_store->get_table(curr_op->get_string_option(OPT_SELECT_TARGET));
         if (table_to_filter != nullptr) {
-
+            if (curr_op->get_bool_option(OPT_SIMPLE_EXPR)) {
+                SimpleFilter f(curr_op, table_to_filter);
+                LOG_DEBUG_RAW("SimpleFilter created");
+                assert(f.get_valid());
+                curr_result = table_to_filter->simple_filter(&f);
+            }
         }
         else {
             LOG_DEBUG("Table does not exist", curr_op->get_string_option(OPT_SELECT_TARGET));

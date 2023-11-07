@@ -3,6 +3,7 @@
 #include "../util/log.h"
 #include "../metadata/metadata_store.h"
 #include "../util/file.h"
+#include "../filter/filter.h"
 
 #include <iostream>
 #include <vector>
@@ -33,7 +34,7 @@ InMemoryDF::InMemoryDF(Schema* schema, int initial_capacity) {
     init(col_types, initial_capacity);
 }
 
-InMemoryDF::InMemoryDF(InMemoryDF* original) {
+InMemoryDF::InMemoryDF(InMemoryDF* original, bool schema_only) {
     // Copy column types and initialize data.
     std::vector<DataType> ctypes(original->get_num_columns(), TYPE_INT);
     for (int i = 0; i < original->get_num_columns(); i++) {
@@ -41,26 +42,33 @@ InMemoryDF::InMemoryDF(InMemoryDF* original) {
     }
     init(ctypes, original->get_capacity());
 
-    // Copy data.
-    num_records = original->get_num_records();
-    int num_columns = get_num_columns();
-    for (int i = 0; i < ctypes.size(); i++) {
-        if (ctypes[i] == TYPE_INT) {
-            memcpy(int_data[int_cols[i]], original->get_int_data(i), sizeof(int) * num_records);
-        }
-        else if (ctypes[i] == TYPE_BOOL) {
-            memcpy(bool_data[bool_cols[i]], original->get_bool_data(i), sizeof(bool) * num_records);
-        }
-        else if (ctypes[i] == TYPE_STRING) {
-            for (int j = 0; j < num_records; j++) {
-                char** orig_data = original->get_str_data(i);
-                int length_to_copy = strlen(orig_data[j]) + 1;
-                str_data[str_cols[i]][j] = new char[length_to_copy];
-                memcpy(str_data[str_cols[i]][j], orig_data[j], sizeof(char) * length_to_copy);
+    if (!schema_only) {
+        // Copy data.
+        num_records = original->get_num_records();
+        int num_columns = get_num_columns();
+        for (int i = 0; i < ctypes.size(); i++) {
+            if (ctypes[i] == TYPE_INT) {
+                memcpy(int_data[int_cols[i]], original->get_int_data(i), sizeof(int) * num_records);
+            }
+            else if (ctypes[i] == TYPE_BOOL) {
+                memcpy(bool_data[bool_cols[i]], original->get_bool_data(i), sizeof(bool) * num_records);
+            }
+            else if (ctypes[i] == TYPE_STRING) {
+                for (int j = 0; j < num_records; j++) {
+                    char** orig_data = original->get_str_data(i);
+                    int length_to_copy = strlen(orig_data[j]) + 1;
+                    str_data[str_cols[i]][j] = new char[length_to_copy];
+                    memcpy(str_data[str_cols[i]][j], orig_data[j], sizeof(char) * length_to_copy);
+                }
             }
         }
     }
+    else {
+        num_records = 0;
+    }
 }
+
+InMemoryDF::InMemoryDF(InMemoryDF* original) : InMemoryDF(original, false) {}
 
 InMemoryDF::InMemoryDF(InMemoryDF* original, std::vector<int> projected_cols) {
     // Copy column types and initialize data.
@@ -150,6 +158,65 @@ InMemoryDF::~InMemoryDF() {
     if (num_str > 0) {
         delete[] str_lengths;
         delete[] str_data;
+    }
+}
+
+InMemoryDF* InMemoryDF::simple_filter(SimpleFilter* f) {
+    // If const-const comparison, return a deep copy if comparison is true, otherwise
+    // return a shallow copy (schema-only).s
+    int predicate = f->get_predicate_type();
+    if (f->get_type() == CONST_CONST) {
+        return new InMemoryDF(this, !f->get_const_res());
+    }
+    else if (f->get_type() == CONST_COL) {
+        InMemoryDF* output = new InMemoryDF(this, true);
+        int col_ind = f->get_col_inds().first;
+        if (int_cols.find(col_ind) != int_cols.end()) {
+            assert(f->get_const_type() == TYPE_INT);
+            if (predicate == FILTER_EQUALS) {
+                int curr_ind = 0;
+                int* predicate_col = int_data[int_cols[col_ind]];
+                int comp_val = f->get_int_const();
+                for (int i = 0; i < num_records; i++) {
+                    if (predicate_col[i] == comp_val) {
+                        COPY_RECORD(output, i, curr_ind);
+                    }
+                }
+                output->num_records = curr_ind;
+            }
+        }
+        else if (bool_cols.find(col_ind) != bool_cols.end()) {
+            assert(f->get_const_type() == TYPE_BOOL);
+            if (predicate == FILTER_EQUALS) {
+                int curr_ind = 0;
+                bool* predicate_col = bool_data[bool_cols[col_ind]];
+                bool comp_val = f->get_bool_const();
+                for (int i = 0; i < num_records; i++) {
+                    if (predicate_col[i] == comp_val) {
+                        COPY_RECORD(output, i, curr_ind);
+                    }
+                }
+                output->num_records = curr_ind;
+            }
+        }
+        else if (str_cols.find(col_ind) != str_cols.end()) {
+            assert(f->get_const_type() == TYPE_STRING);
+            if (predicate == FILTER_EQUALS) {
+                int curr_ind = 0;
+                char** predicate_col = str_data[str_cols[col_ind]];
+                std::string comp_val = f->get_string_const();
+                char* c_comp_val = new char[comp_val.size() + 1];
+                strcpy(c_comp_val, comp_val.c_str());
+                for (int i = 0; i < num_records; i++) {
+                    if (strcmp(predicate_col[i], c_comp_val) == 0) {
+                        COPY_RECORD(output, i, curr_ind);
+                    }
+                }
+                delete[] c_comp_val;
+                output->num_records = curr_ind;
+            }
+        }
+        return output;
     }
 }
 

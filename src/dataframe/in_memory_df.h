@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../metadata/schema.h"
+#include "../analyzer/operations.h"
 
 #include <unordered_map>
 #include <vector>
 
+class SimpleFilter;
 class MetadataStore;
 
 struct Record {
@@ -39,9 +41,11 @@ class InMemoryDF {
         InMemoryDF(Schema* schema, int initial_capacity);
         InMemoryDF(std::vector<DataType> col_types, int initial_capacity);
         InMemoryDF(InMemoryDF* original);
+        InMemoryDF(InMemoryDF* original, bool schema_only);
         InMemoryDF(InMemoryDF* original, std::vector<int> projected_cols);
         ~InMemoryDF();
         InMemoryDF* deep_clone();
+        InMemoryDF* simple_filter(SimpleFilter* op);
 
         bool insert_record(Record record);
         bool merge_df(InMemoryDF* df);
@@ -80,3 +84,16 @@ class InMemoryDF {
         int curr_capacity;
         int version;
 };
+
+# define COPY_RECORD(dst_df, src_ind, dst_ind) \
+    for (int _i = 0; _i < num_int; _i++) {  \
+        dst_df->int_data[_i][dst_ind] = int_data[_i][src_ind]; \
+    } \
+    for (int _i = 0; _i < num_int; _i++) { \
+        dst_df->bool_data[_i][dst_ind] = bool_data[_i][src_ind]; \
+    } \
+    for (int _i = 0; _i < num_int; _i++) { \
+        dst_df->str_data[_i][dst_ind] = new char[strlen(str_data[_i][src_ind]) + 1]; \
+        strcpy(dst_df->str_data[_i][dst_ind], str_data[_i][src_ind]); \
+    } \
+    dst_ind++;

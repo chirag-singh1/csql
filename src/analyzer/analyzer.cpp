@@ -1,6 +1,7 @@
 #include "analyzer.h"
 #include "../util/log.h"
 #include "../metadata/schema.h"
+#include "../filter/filter.h"
 
 #include <iostream>
 #include <vector>
@@ -12,6 +13,11 @@ Analyzer::Analyzer() {
     char* op_names[] = { OPERATIONS };
     for (int i = 0; i < NUM_SUPPORTED_OPERATIONS; i++) {
         operation_lookup[op_names[i]] = i;
+    }
+
+    char* filter_ops[] = { FILTERS };
+    for (int i = 0; i < NUM_SUPPORTED_FILTERS; i++) {
+        filter_lookup[filter_ops[i]] = i;
     }
 }
 
@@ -68,7 +74,7 @@ void parse_const_expr(const rapidjson::Value& val, OperationNode* o, std::string
     }
 }
 
-void parse_filter_expr(const rapidjson::Value& val, bool is_left, OperationNode* n, int level) {
+void Analyzer::parse_filter_expr(const rapidjson::Value& val, bool is_left, OperationNode* n, int level) {
     JSON_LOG_DEBUG("Parsing filter expression", &val);
     if (val.HasMember(OPT_SELECT_COLREF)) {
         n->set_int_option(OPT_FILTER_EXPR_TYPE(level, is_left), TYPE_COL_REF);
@@ -81,7 +87,7 @@ void parse_filter_expr(const rapidjson::Value& val, bool is_left, OperationNode*
     }
 }
 
-OperationNode* parse_filter(const rapidjson::Value* filter) {
+OperationNode* Analyzer::parse_filter(const rapidjson::Value* filter) {
     OperationNode* filter_node = new OperationNode(OP_FILTER, 0, "Filter");
     JSON_LOG_DEBUG("Parsing filter", filter);
     if (filter->HasMember(OPT_EXPR)) {
@@ -93,7 +99,7 @@ OperationNode* parse_filter(const rapidjson::Value* filter) {
         parse_filter_expr(filter->FindMember(OPT_EXPR)->
             value.FindMember(OPT_REXPR)->value, false, filter_node, 0);
         filter_node->set_bool_option(OPT_SIMPLE_EXPR, true);
-        filter_node->set_string_option(OPT_FILTER_EXPR(0), op);
+        filter_node->set_int_option(OPT_FILTER_EXPR(0), filter_lookup[op]);
     }
     else {
         // TODO: handle complex boolean predicates.
@@ -164,6 +170,7 @@ OperationNode* Analyzer::query_to_node_internal(const rapidjson::Value* query) {
         else if (operation_lookup.at(op_name) == OP_SELECT) {
             const rapidjson::Value& sel_op = options.FindMember(OPT_SELECT_1)->value;
             // WHERE clause on the SELECT. Pushdown the filter.
+            o->set_bool_option(OPT_USE_IN_MEMORY, sel_op.HasMember(OPT_FILTER));
             if (sel_op.HasMember(OPT_FILTER)) {
                 o->set_num_children(1);
                 o->set_child(parse_filter(&sel_op.FindMember(OPT_FILTER)->value), 0);

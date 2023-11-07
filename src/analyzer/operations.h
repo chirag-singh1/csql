@@ -99,3 +99,4 @@ class OperationNode {
 # define OPT_FILTER_EXPR(level) "filter_expr" + std::to_string(level)
 # define OPT_NAME "name"
 # define OPT_SIMPLE_EXPR "simple_expr"
+# define OPT_USE_IN_MEMORY "UseInMemory"

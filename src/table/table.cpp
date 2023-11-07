@@ -2,6 +2,7 @@
 #include "../util/file.h"
 #include "../metadata/metadata.h"
 #include "../metadata/metadata_store.h"
+#include "../filter/filter.h"
 
 Table::Table(std::string name, Schema* schema, int num_columns, MetadataStore* m)
 : name(name), schema(schema), num_columns(num_columns), is_stale(true), data(nullptr), m(m) {}
@@ -72,13 +73,24 @@ InMemoryDF* Table::project_cols(std::vector<std::string> cols) {
         load_from_disk();
     }
 
+    return project_cols(cols, data);
+}
+
+InMemoryDF* Table::project_cols(std::vector<std::string> cols, InMemoryDF* data_override) {
     std::vector<int> inds;
     LOG_DEBUG_VEC("Projecting columns", cols);
     for (int i = 0; i < cols.size(); i++) {
         inds.push_back(schema->column_indices[cols[i]]);
     }
 
-    return new InMemoryDF(data, inds);
+    return new InMemoryDF(data_override, inds);
+}
+
+InMemoryDF* Table::simple_filter(SimpleFilter* f) {
+    if (is_stale) {
+        load_from_disk();
+    }
+    return data->simple_filter(f);
 }
 
 bool Table::load_from_disk() {
@@ -93,4 +105,11 @@ bool Table::delete_data() {
     LOG_DEBUG("Deleting data at", m->get_table_filepath(name));
     DELETE_TABLE_DATA(m->get_table_filepath(name));
     LOG_DEBUG_RAW("Data deleted");
+}
+
+int Table::get_col_ind(std::string col_name) {
+    if (schema->column_indices.find(col_name) == schema->column_indices.end()) {
+        return -1;
+    }
+    return schema->column_indices[col_name];
 }
